@@ -177,6 +177,7 @@ const data4 opData[] =
 		{ "NDSServers", 85, 3 , 1},
 		{ "NDSTreeName", 86, 1 , 1},
 		{ "NDSContext", 87, 1 , 1},
+		{ "ClientSystemArch", 93, 2 , 0},
 		{ "LDAP", 95, 1 , 1},
 		{ "PCode", 100, 1 , 1},
 		{ "TCode", 101, 1 , 1},
@@ -3875,8 +3876,9 @@ bool checkRange(data17 *rangeData, char rangeInd)
 	if((!rangeData->macFound && !rangeSet->macSize[0]) || (rangeData->macFound && rangeData->macArray[rangeSetInd]))
 		if((!rangeData->vendFound && !rangeSet->vendClassSize[0]) || (rangeData->vendFound && rangeData->vendArray[rangeSetInd]))
 			if((!rangeData->userFound && !rangeSet->userClassSize[0]) || (rangeData->userFound && rangeData->userArray[rangeSetInd]))
-				if((!rangeData->subnetFound && !rangeSet->subnetIP[0]) || (rangeData->subnetFound && rangeData->subnetArray[rangeSetInd]))
-					return true;
+				if((!rangeData->clientSystemArchFound && !rangeSet->clientSystemArchSize[0]) || (rangeData->clientSystemArchFound && rangeData->clientSystemArchArray[rangeSetInd]))
+					if((!rangeData->subnetFound && !rangeSet->subnetIP[0]) || (rangeData->subnetFound && rangeData->subnetArray[rangeSetInd]))
+						return true;
 
 	//printf("checkRange, returning false rangeInd=%i rangeSetInd=%i\n", rangeInd, rangeSetInd);
 	return false;
@@ -3966,6 +3968,17 @@ MYDWORD resad(data9 *req)
 				}
 			}
 
+			for (MYBYTE i = 0; i < MAX_RANGE_FILTERS && req->clientSystemArch.size && rangeSet->clientSystemArchSize[i]; i++)
+			{
+				if(rangeSet->clientSystemArchSize[i] == req->clientSystemArch.size && !memcmp(req->clientSystemArch.value, rangeSet->clientSystemArch[i], rangeSet->clientSystemArchSize[i]))
+				{
+					rangeData.clientSystemArchArray[rangeSetInd] = 1;
+					rangeData.clientSystemArchFound = true;
+					//printf("user Found, rangeSetInd=%i\n", rangeSetInd);
+					break;
+				}
+			}
+
 			for (MYBYTE i = 0; i < MAX_RANGE_FILTERS && req->subnetIP && rangeSet->subnetIP[i]; i++)
 			{
 				if(req->subnetIP == rangeSet->subnetIP[i])
@@ -3983,6 +3996,7 @@ MYDWORD resad(data9 *req)
 //	printArray("macArray", (char*)cfig.macArray);
 //	printArray("vendArray", (char*)cfig.vendArray);
 //	printArray("userArray", (char*)cfig.userArray);
+//	printArray("clientSystemArchArray", (char*)cfig.clientSystemArchArray);
 
 	if (req->dhcpEntry)
 	{
@@ -5405,6 +5419,17 @@ void loadOptions(FILE *f, const char *sectionName, data20 *optionData)
 			}
 			continue;
 		}
+		else if (!strcasecmp(name, "FilterClientSystemArch"))
+		{
+			if (!strcasecmp(sectionName, RANGESET))
+				addClientSystemArch(optionData->rangeSetInd, value, valSize);
+			else
+			{
+				sprintf(logBuff, "FilterClientSystemArch2: Warning: section [%s] option %s not allowed in this section, option ignored", sectionName, raw);
+				logDHCPMess(logBuff, 1);
+			}
+			continue;
+		}
 		else if (!strcasecmp(name, "TargetRelayAgent"))
 		{
 			if (valSize != 4)
@@ -5964,6 +5989,35 @@ void addUserClass(MYBYTE rangeSetInd, char *userClass, MYBYTE userClassSize)
 		rangeSet->userClassSize[i] = userClassSize;
 		memcpy(rangeSet->userClass[i], userClass, userClassSize);
 		//printf("Loaded User Class %s Size=%i rangeSetInd=%i Ind=%i\n", hex2String(tempbuff, rangeSet->userClass[i], rangeSet->userClassSize[i], ':'), rangeSet->vendClassSize[i], rangeSetInd, i);
+	}
+}
+
+void addClientSystemArch(MYBYTE rangeSetInd, char *clientSystemArch, MYBYTE clientSystemArchSize)
+{
+	data14 *rangeSet = &cfig.rangeSet[rangeSetInd];
+
+	MYBYTE i = 0;
+
+	for (; i <= MAX_RANGE_FILTERS && rangeSet->clientSystemArchSize[i]; i++);
+
+	if (i >= MAX_RANGE_FILTERS || !clientSystemArchSize)
+		return;
+
+	rangeSet->clientSystemArch[i] = (MYBYTE*)calloc(clientSystemArchSize, 1);
+
+	if(!rangeSet->clientSystemArch[i])
+	{
+		sprintf(logBuff, "Client System Arch Load, Memory Allocation Error");
+		logDHCPMess(logBuff, 1);
+	}
+	else
+	{
+		cfig.hasFilter = true;
+		rangeSet->clientSystemArchSize[i] = clientSystemArchSize;
+		memcpy(rangeSet->clientSystemArch[i], clientSystemArch, clientSystemArchSize);
+		//sprintf(logBuff, "Client System Arch %s Size=%i rangeSetInd=%i Ind=%i\n", hex2String(tempbuff, rangeSet->clientSystemArch[i], rangeSet->clientSystemArchSize[i]), rangeSet->vendClassSize[i], rangeSetInd, i);
+		//logDHCPMess(logBuff, 1);
+		// printf("Client System Arch %s Size=%i rangeSetInd=%i Ind=%i\n", hex2String(clientSystemArch, rangeSet->clientSystemArch[i], rangeSet->clientSystemArchSize[i], ':'), rangeSet->vendClassSize[i], rangeSetInd, i);
 	}
 }
 
@@ -10240,6 +10294,10 @@ MYWORD gdmess(data9 *req, MYBYTE sockInd)
 
 			case DHCP_OPTION_CLIENTID:
 				memcpy(&req->clientId, op, op->size + 2);
+				break;
+
+			case DHCP_OPTION_CLIENTSYSTEM:
+				memcpy(&req->clientSystemArch, op, op->size + 2);
 				break;
 
 			case DHCP_OPTION_SUBNETSELECTION:

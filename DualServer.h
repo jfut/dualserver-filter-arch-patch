@@ -601,6 +601,8 @@ struct data14 //rangeSet
 	MYBYTE vendClassSize[MAX_RANGE_FILTERS];
 	MYBYTE *userClass[MAX_RANGE_FILTERS];
 	MYBYTE userClassSize[MAX_RANGE_FILTERS];
+	MYBYTE *clientSystemArch[MAX_RANGE_FILTERS];
+	MYBYTE clientSystemArchSize[MAX_RANGE_FILTERS];
 	MYDWORD subnetIP[MAX_RANGE_FILTERS];
 	MYDWORD targetIP;
 };
@@ -610,10 +612,12 @@ struct data17
 	MYBYTE macArray[MAX_RANGE_SETS];
 	MYBYTE vendArray[MAX_RANGE_SETS];
 	MYBYTE userArray[MAX_RANGE_SETS];
+	MYBYTE clientSystemArchArray[MAX_RANGE_SETS];
 	MYBYTE subnetArray[MAX_RANGE_SETS];
 	bool macFound;
 	bool vendFound;
 	bool userFound;
+	bool clientSystemArchFound;
 	bool subnetFound;
 };
 
@@ -660,6 +664,7 @@ struct data9 //dhcpRequst
 	data3 subnet;
 	data3 vendClass;
 	data3 userClass;
+	data3 clientSystemArch;
 	MYDWORD subnetIP;
 	MYDWORD targetIP;
 	MYDWORD rebind;
@@ -845,6 +850,7 @@ void addDHCPRange(char*);
 void addMacRange(MYBYTE, char*);
 void addVendClass(MYBYTE, char*, MYBYTE);
 void addUserClass(MYBYTE, char*, MYBYTE);
+void addClientSystemArch(MYBYTE, char*, MYBYTE);
 void addEntry(MYBYTE, data7*);
 void addOptions(data9*);
 void addRRNone(data5*);
